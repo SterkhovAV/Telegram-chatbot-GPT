@@ -1,0 +1,16 @@
+bot:
+  name: ${BOT_NAME}
+  token: ${BOT_TOKEN}
+  buffer:
+    threshold: ${BOT_BUFFER_THRESHOLD}
+
+spring:
+  ai:
+    openai:
+      base-url: ${OPENAI_BASE_URL}
+      api-key: ${OPENAI_API_KEY}
+
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
