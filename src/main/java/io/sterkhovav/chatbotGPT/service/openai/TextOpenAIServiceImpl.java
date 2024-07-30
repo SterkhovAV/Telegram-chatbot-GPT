@@ -1,6 +1,7 @@
 package io.sterkhovav.chatbotGPT.service.openai;
 
 import io.sterkhovav.chatbotGPT.config.BotConfig;
+import io.sterkhovav.chatbotGPT.models.User;
 import io.sterkhovav.chatbotGPT.service.TelegramBot;
 import io.sterkhovav.chatbotGPT.utils.CustomUtils;
 import lombok.AllArgsConstructor;
@@ -40,17 +41,16 @@ public class TextOpenAIServiceImpl implements TextOpenAIService {
 
     @SneakyThrows
     @Override
-    public void executeGPTTextResponse(String request, Long chatId, String username) {
+    public void executeGPTTextResponse(String request, Long chatId, User user) {
 
         var initMessage = SendMessage.builder()
                 .chatId(chatId)
                 .text(GPT_RESPONSE_INIT_MESSAGE)
                 .build();
 
-
         var messageId = telegramBot.execute(initMessage).getMessageId();
 
-        var response = getResponse(request);
+        var response = requestToOpenAi(request, user);
 
         StringBuilder fullText = new StringBuilder();
         StringBuffer currentMessageBuffer = new StringBuffer();
@@ -60,9 +60,31 @@ public class TextOpenAIServiceImpl implements TextOpenAIService {
         });
     }
 
+
+    public Flux<ChatResponse> requestToOpenAi(String message, User user) {
+        var openAiApi = new OpenAiApi(botConfig.getApiToken());
+
+        List<Message> messages = Arrays.asList(
+                //new SystemMessage("Strongly use MARKDOWN formatting for telegram and don't use #."),
+                new UserMessage(message)
+        );
+
+        var chatModel = new OpenAiChatModel(openAiApi);
+
+        return chatModel.stream(
+                new Prompt(
+                        messages,
+                        OpenAiChatOptions.builder()
+                                .withModel(user.getModelGPT().getName())
+                                .build()
+                ));
+
+    }
+
+
     @SneakyThrows
     private void processChatResponse(ChatResponse chatResponse, Integer messageId, Long chatId, StringBuilder fullText, StringBuffer currentMessageBuffer) {
-        Thread.sleep(1);
+        Thread.sleep(100);
         String finishReason = chatResponse.getResult().getMetadata().getFinishReason();
         if (finishReason != null && finishReason.equals(STOP)) {
             fullText.append(currentMessageBuffer);
@@ -81,31 +103,6 @@ public class TextOpenAIServiceImpl implements TextOpenAIService {
         }
     }
 
-    private Flux<ChatResponse> getResponse(String request) {
-        return requestToOpenAi(request);
-    }
-
-
-    public Flux<ChatResponse> requestToOpenAi(String message) {
-        var openAiApi = new OpenAiApi(botConfig.getApiToken());
-
-        List<Message> messages = Arrays.asList(
-                //new SystemMessage("Strongly use MARKDOWN formatting for telegram and don't use #."),
-                new UserMessage(message)
-        );
-
-        var chatModel = new OpenAiChatModel(openAiApi);
-
-        return chatModel.stream(
-                new Prompt(
-                        messages,
-                        OpenAiChatOptions.builder()
-                                .withModel("gpt-4-turbo")
-                                .build()
-                ));
-
-    }
-
 
     @SneakyThrows
     private void updateTelegramMessage(Long chatId, Integer messageId, String text, Boolean parseMarkdown) {
@@ -122,8 +119,7 @@ public class TextOpenAIServiceImpl implements TextOpenAIService {
             telegramBot.execute(editMessageMarkdown);
         } catch (TelegramApiException e) {
             log.error("TelegramApiException: {}", e.getMessage());
+            log.error(text);
         }
     }
-
-
 }

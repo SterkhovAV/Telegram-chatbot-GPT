@@ -1,5 +1,6 @@
 package io.sterkhovav.chatbotGPT.service.user;
 
+import io.sterkhovav.chatbotGPT.models.User;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
@@ -17,13 +18,13 @@ public class AccessControlServiceImpl implements AccessControlService {
     private final UserService userService;
 
     @Override
-    public boolean checkUserAuthorities(String username) {
+    public User getUserIfHeHasAuthorities(String username) {
         var user = userService.findUserByUsername(username);
         if (user != null) {
             if (user.getActive())
-                return true;
+                return user;
         }
-        return false;
+        return null;
     }
 
     @SneakyThrows

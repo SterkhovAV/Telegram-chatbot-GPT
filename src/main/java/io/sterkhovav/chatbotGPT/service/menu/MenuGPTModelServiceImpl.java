@@ -20,7 +20,7 @@ public class MenuGPTModelServiceImpl implements MenuGPTModelService {
     private final UserService userService;
 
     @Override
-    public SendMessage getGPTMenu(Long chatId, String username) {
+    public SendMessage getGPTModelMenu(Long chatId, String username) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
 
@@ -35,7 +35,7 @@ public class MenuGPTModelServiceImpl implements MenuGPTModelService {
 
     @Override
     @Transactional
-    public EditMessageText updateGPTMenu(String callbackData, Integer messageId, Long chatId, String username) {
+    public EditMessageText updateGPTModelMenu(String callbackData, Integer messageId, Long chatId, String username) {
         var gptModel = ModelGPTEnum.getByName(callbackData);
         EditMessageText message = new EditMessageText();
         message.setChatId(chatId);

@@ -5,22 +5,24 @@ import io.sterkhovav.chatbotGPT.enums.ModelGPTEnum;
 import io.sterkhovav.chatbotGPT.service.menu.MenuGPTModelService;
 import io.sterkhovav.chatbotGPT.service.openai.TextOpenAIService;
 import io.sterkhovav.chatbotGPT.service.user.AccessControlService;
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
+import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.sterkhovav.chatbotGPT.utils.Constants.ACCESS_DENIED;
 import static io.sterkhovav.chatbotGPT.utils.Constants.FIRST_USER_WELCOME_MESSAGE;
-import static io.sterkhovav.chatbotGPT.utils.Constants.GPT_RESPONSE_INIT_MESSAGE;
 
 @Setter
 @Getter
@@ -38,6 +40,16 @@ public class TelegramBot extends TelegramLongPollingBot {
         this.accessControlService = accessControlService;
         this.menuGptModelService = menuGptModelService;
         this.textOpenAIService = textOpenAIService;
+    }
+
+    @SneakyThrows
+    @PostConstruct
+    public void init() {
+        List<BotCommand> commands = new ArrayList<>();
+        //TODO(Move string to const)
+        commands.add(new BotCommand("/model", "Choose GPT model"));
+
+        this.execute(new SetMyCommands(commands, new BotCommandScopeDefault(), null));
     }
 
     @SneakyThrows
@@ -60,29 +72,28 @@ public class TelegramBot extends TelegramLongPollingBot {
             var request = update.getMessage().getText();
             var messageId = update.getMessage().getMessageId();
 
-            var hasAccess = accessControlService.checkUserAuthorities(username);
-            if (!hasAccess) {
+            var user = accessControlService.getUserIfHeHasAuthorities(username);
+            if (user == null) {
                 processUserAccess(username, chatId);
             }
 
             switch (request) {
                 case "/start": {
-
                     SendMessage sendMessage = new SendMessage();
                     sendMessage.setChatId(chatId);
                     sendMessage.setText("HI" + username);
-
                     execute(sendMessage);
+                    return;
 
                 }
+
                 case "/model": {
-
-                    var asas = execute(menuGptModelService.getGPTMenu(chatId, username));
-
+                    execute(menuGptModelService.getGPTModelMenu(chatId, username));
+                    return;
                 }
 
                 default:
-                    textOpenAIService.executeGPTTextResponse(request, chatId, username);
+                    textOpenAIService.executeGPTTextResponse(request, chatId, user);
             }
         } else if (update.hasCallbackQuery()) {
             var callbackData = update.getCallbackQuery().getData();
@@ -92,7 +103,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             if (ModelGPTEnum.existsByName(callbackData)) {
 
-                execute(menuGptModelService.updateGPTMenu(callbackData, messageId, chatId, username));
+                execute(menuGptModelService.updateGPTModelMenu(callbackData, messageId, chatId, username));
 
             }
 
@@ -116,7 +127,5 @@ public class TelegramBot extends TelegramLongPollingBot {
         sendMessage.setText(message);
         execute(sendMessage);
     }
-
-
 
 }

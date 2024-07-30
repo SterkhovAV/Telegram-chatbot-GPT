@@ -9,8 +9,8 @@ import static io.sterkhovav.chatbotGPT.utils.Constants.GPT_4_TURBO_DESCRIPTION;
 @Getter
 @AllArgsConstructor
 public enum ModelGPTEnum {
-    GPT_4_TURBO("GPT-4 Turbo", GPT_4_TURBO_DESCRIPTION),
-    GPT_4_O("GPT-4o", GPT_4_O_DESCRIPTION),
+    GPT_4_TURBO("gpt-4-turbo", GPT_4_TURBO_DESCRIPTION),
+    GPT_4_O("gpt-4o", GPT_4_O_DESCRIPTION),
     ;
 
     private final String name;
