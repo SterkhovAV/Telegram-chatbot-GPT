@@ -4,6 +4,7 @@ public class Constants {
     public static final String ACCESS_DENIED = "You do not have permission to access this resource.";
     public static final String FIRST_USER_WELCOME_MESSAGE = "Hello! Welcome to chatbotGPT! You are first user.";
     public static final String GPT_RESPONSE_INIT_MESSAGE = "...";
+    public static final String ANOTHER_MESSAGE_IS_PROCESSING = "⏳ Please wait for a reply to the previous message";
     public static final String STOP = "STOP";
 
 

@@ -18,6 +18,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +30,7 @@ import static io.sterkhovav.chatbotGPT.utils.Constants.FIRST_USER_WELCOME_MESSAG
 @Service
 public class TelegramBot extends TelegramLongPollingBot {
 
+    private Instant botStartTime;
     private final BotConfig botConfig;
     private final AccessControlService accessControlService;
     private final MenuGPTModelService menuGptModelService;
@@ -45,6 +47,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     @SneakyThrows
     @PostConstruct
     public void init() {
+        botStartTime = Instant.now();
         List<BotCommand> commands = new ArrayList<>();
         //TODO(Move string to const)
         commands.add(new BotCommand("/model", "Choose GPT model"));
@@ -65,50 +68,53 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @SneakyThrows
     private void processUpdate(Update update) {
+        //Don't process messages before bot start
+        if (isMessageOld(update)) return;
 
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            var username = update.getMessage().getChat().getUserName();
+        if (update.hasMessage()) {
             var chatId = update.getMessage().getChatId();
-            var request = update.getMessage().getText();
-            var messageId = update.getMessage().getMessageId();
 
-            var user = accessControlService.getUserIfHeHasAuthorities(username);
-            if (user == null) {
-                processUserAccess(username, chatId);
-            }
+            if (update.getMessage().hasText()) {
+                var username = update.getMessage().getChat().getUserName();
+                var request = update.getMessage().getText();
 
-            switch (request) {
-                case "/start": {
-                    SendMessage sendMessage = new SendMessage();
-                    sendMessage.setChatId(chatId);
-                    sendMessage.setText("HI" + username);
-                    execute(sendMessage);
-                    return;
-
+                var user = accessControlService.getUserIfHeHasAuthorities(username);
+                if (user == null) {
+                    processUserAccess(username, chatId);
                 }
 
-                case "/model": {
-                    execute(menuGptModelService.getGPTModelMenu(chatId, username));
-                    return;
+                switch (request) {
+                    case "/start": {
+                        SendMessage sendMessage = new SendMessage();
+                        sendMessage.setChatId(chatId);
+                        sendMessage.setText("HI" + username);
+                        execute(sendMessage);
+                        return;
+
+                    }
+
+                    case "/model": {
+                        execute(menuGptModelService.getGPTModelMenu(chatId, username));
+                        return;
+                    }
+
+                    default:
+                        textOpenAIService.executeGPTTextResponse(request, chatId, user);
                 }
+            } else if (update.hasCallbackQuery()) {
+                var callbackData = update.getCallbackQuery().getData();
+                var callbackMessageId = update.getCallbackQuery().getMessage().getMessageId();
+                var callbackUsername = update.getCallbackQuery().getFrom().getUserName();
+                var callbackChatId = update.getCallbackQuery().getMessage().getChatId();
 
-                default:
-                    textOpenAIService.executeGPTTextResponse(request, chatId, user);
+                if (ModelGPTEnum.existsByName(callbackData)) {
+
+                    execute(menuGptModelService.updateGPTModelMenu(callbackData, callbackMessageId, callbackChatId, callbackUsername));
+
+                }
             }
-        } else if (update.hasCallbackQuery()) {
-            var callbackData = update.getCallbackQuery().getData();
-            var messageId = update.getCallbackQuery().getMessage().getMessageId();
-            var username = update.getCallbackQuery().getFrom().getUserName();
-            var chatId = update.getCallbackQuery().getMessage().getChatId();
-
-            if (ModelGPTEnum.existsByName(callbackData)) {
-
-                execute(menuGptModelService.updateGPTModelMenu(callbackData, messageId, chatId, username));
-
-            }
-
-
         }
+
     }
 
     private void processUserAccess(String username, Long chatId) {
@@ -120,6 +126,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    private boolean isMessageOld(Update update) {
+        int messageDate = update.getMessage().getDate();
+        Instant messageInstant = Instant.ofEpochSecond(messageDate);
+        return messageInstant.isBefore(botStartTime);
+    }
+
     @SneakyThrows
     public void sendTextMessage(String message, Long chatId) {
         SendMessage sendMessage = new SendMessage();
@@ -127,5 +139,4 @@ public class TelegramBot extends TelegramLongPollingBot {
         sendMessage.setText(message);
         execute(sendMessage);
     }
-
 }

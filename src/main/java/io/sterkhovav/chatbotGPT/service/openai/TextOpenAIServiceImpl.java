@@ -9,7 +9,6 @@ import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -25,9 +24,11 @@ import reactor.core.publisher.Flux;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
-import static io.sterkhovav.chatbotGPT.utils.Constants.GPT_RESPONSE_INIT_MESSAGE;
-import static io.sterkhovav.chatbotGPT.utils.Constants.STOP;
+import static io.sterkhovav.chatbotGPT.utils.Constants.*;
 
 
 @Service
@@ -37,26 +38,38 @@ public class TextOpenAIServiceImpl implements TextOpenAIService {
 
     private final BotConfig botConfig;
     private final TelegramBot telegramBot;
-
+    private final ConcurrentMap<Long, Boolean> userBusyMap = new ConcurrentHashMap<>();
 
     @SneakyThrows
     @Override
     public void executeGPTTextResponse(String request, Long chatId, User user) {
+        userBusyMap.putIfAbsent(chatId, false);
 
         var initMessage = SendMessage.builder()
                 .chatId(chatId)
                 .text(GPT_RESPONSE_INIT_MESSAGE)
                 .build();
 
+        if (userBusyMap.get(chatId)) {
+            initMessage.setText(ANOTHER_MESSAGE_IS_PROCESSING);
+            telegramBot.execute(initMessage);
+            return;
+        } else {
+            userBusyMap.put(chatId, true);
+        }
+
         var messageId = telegramBot.execute(initMessage).getMessageId();
 
-        var response = requestToOpenAi(request, user);
+        CompletableFuture.runAsync(() -> {
+            var response = requestToOpenAi(request, user);
 
-        StringBuilder fullText = new StringBuilder();
-        StringBuffer currentMessageBuffer = new StringBuffer();
+            StringBuilder fullText = new StringBuilder();
+            StringBuffer currentMessageBuffer = new StringBuffer();
 
-        response.subscribe(chatResponse -> processChatResponse(chatResponse, messageId, chatId, fullText, currentMessageBuffer), error -> {
-            log.error("Error: {}", error.getMessage());
+            response.doOnNext(chatResponse -> processChatResponse(chatResponse, messageId, chatId, fullText, currentMessageBuffer))
+                    .doOnError(error -> log.error("Error: {}", error.getMessage()))
+                    .doOnComplete(() -> userBusyMap.put(chatId, false))
+                    .blockLast();
         });
     }
 
