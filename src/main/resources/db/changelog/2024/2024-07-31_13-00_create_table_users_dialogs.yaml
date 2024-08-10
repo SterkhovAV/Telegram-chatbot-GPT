@@ -1,0 +1,43 @@
+databaseChangeLog:
+  - changeSet:
+      id: create_table_gpt_users_dialogs
+      author: sterkhovav
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: gpt_users_dialogs
+      changes:
+        - createTable:
+            tableName: gpt_users_dialogs
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_request
+                  type: VARCHAR
+                  constraints:
+                    nullable: false
+              - column:
+                  name: gpt_response
+                  type: VARCHAR
+                  constraints:
+                    nullable: false
+              - column:
+                  name: create_date
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: gpt_users_dialogs

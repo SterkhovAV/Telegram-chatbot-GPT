@@ -15,4 +15,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u.modelGPT FROM User u WHERE u.username = :username")
     ModelGPTEnum findModelGPTByUsername(@Param("username") String username);
+
+    @Query("SELECT u.id FROM User u WHERE u.username = :username")
+    Long findUserIdByUsername(@Param("username") String username);
 }

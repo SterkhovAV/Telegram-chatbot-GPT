@@ -3,6 +3,7 @@ package io.sterkhovav.chatbotGPT.service.openai;
 import io.sterkhovav.chatbotGPT.config.BotConfig;
 import io.sterkhovav.chatbotGPT.models.User;
 import io.sterkhovav.chatbotGPT.service.TelegramBot;
+import io.sterkhovav.chatbotGPT.service.user.UserDialogService;
 import io.sterkhovav.chatbotGPT.utils.CustomUtils;
 import lombok.AllArgsConstructor;
 
@@ -22,7 +23,6 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import reactor.core.publisher.Flux;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,6 +38,7 @@ public class TextOpenAIServiceImpl implements TextOpenAIService {
 
     private final BotConfig botConfig;
     private final TelegramBot telegramBot;
+    private final UserDialogService userDialogService;
     private final ConcurrentMap<Long, Boolean> userBusyMap = new ConcurrentHashMap<>();
 
     @SneakyThrows
@@ -68,7 +69,10 @@ public class TextOpenAIServiceImpl implements TextOpenAIService {
 
             response.doOnNext(chatResponse -> processChatResponse(chatResponse, messageId, chatId, fullText, currentMessageBuffer))
                     .doOnError(error -> log.error("Error: {}", error.getMessage()))
-                    .doOnComplete(() -> userBusyMap.put(chatId, false))
+                    .doOnComplete(() -> {
+                        userBusyMap.put(chatId, false);
+                        userDialogService.saveDialog(request, fullText.toString(), user);
+                    })
                     .blockLast();
         });
     }
@@ -77,10 +81,9 @@ public class TextOpenAIServiceImpl implements TextOpenAIService {
     public Flux<ChatResponse> requestToOpenAi(String message, User user) {
         var openAiApi = new OpenAiApi(botConfig.getApiToken());
 
-        List<Message> messages = Arrays.asList(
-                //new SystemMessage("Strongly use MARKDOWN formatting for telegram and don't use #."),
-                new UserMessage(message)
-        );
+        List<Message> messages = userDialogService.getPreviousDialogMessages(user);
+        //new SystemMessage("Strongly use MARKDOWN formatting for telegram and don't use #."),
+        messages.add(new UserMessage(message));
 
         var chatModel = new OpenAiChatModel(openAiApi);
 

@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 1
+      id: create_table_gpt_users
       author: sterkhovav
       preConditions:
         - onFail: MARK_RAN
