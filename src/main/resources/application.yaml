@@ -3,6 +3,9 @@ bot:
   token: ${BOT_TOKEN}
   buffer:
     threshold: ${BOT_BUFFER_THRESHOLD}
+  dialog:
+    dialog-timeout: ${BOT_DIALOG_TIMEOUT}
+    previous-messages-limit: ${BOT_PREVIOUS_MESSAGES_LIMIT}
 
 spring:
   ai:

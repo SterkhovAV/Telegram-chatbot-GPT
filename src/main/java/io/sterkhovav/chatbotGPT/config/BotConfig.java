@@ -21,4 +21,10 @@ public class BotConfig {
 
     @Value("${bot.buffer.threshold}")
     int bufferThreshold;
+
+    @Value("${bot.dialog.dialog-timeout}")
+    int dialogTimeout;
+
+    @Value("${bot.dialog.previous-messages-limit}")
+    int previousMessagesLimit;
 }
